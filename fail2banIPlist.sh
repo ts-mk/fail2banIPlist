@@ -1,11 +1,9 @@
 #!/bin/bash
 
 # TODO
-# 1) JAIL in lists
-# 2) Current bans
-# 3) Country of the medalists
+# * Country of the medalists
 
-version='1.0.0'
+version='1.1.0'
 self=`basename $0`
 logfolder=/var/log
 usage="Usage: $self [options]
@@ -19,6 +17,7 @@ Options:
   -v displays version of this script
 
 Commands:
+  current - lists currently banned IP addresses
   all - lists all the bans
   latest - lists the latest bans (default 10)
   offences - lists number of bans for each unique IP
@@ -97,7 +96,7 @@ while getopts ":c:n:o:t:vh" option; do
 			;;
 
 		v)
-			echo "version $version"
+			echo "Version: $version"
 			exit 0
 			;;
 
@@ -115,13 +114,37 @@ done
 
 # Running the command
 case "$command" in
+	current)
+		if [ $USER == "root" ]; then
+			prefix=""
+		else
+			prefix="sudo "
+		fi
+
+		chains=`$prefix iptables -n -L | grep -iE '^Chain fail2ban-' | sed -r 's/.*(fail2ban-[^ ]+).*/\1/g'`
+		for chain in $chains; do
+			jail=`echo "$chain" | sed -r s/fail2ban-//`
+			ban=`$prefix iptables -n -L "$chain" | grep -iE '^(REJECT|DROP)' | awk -v jail="$jail" '{ print jail" "$4 }'`
+			content="$content\n$ban"
+		done
+
+		echo -e "$content" | \
+		(echo "JAIL IP"; cat) | \
+		column -t
+		;;
+
 	all)
 		if [ "$order" == 'desc' ]; then
 			order='r'
 		else
 			order=''
 		fi
-		zgrep " Ban " "$logfolder/fail2ban.log"* | sed -r 's/[^:]+:([^,]+).* Ban (.+)/\1 \2/g' | sort -t " " -k 1.1,1.4n"$order" -k 1.6,1.7n"$order" -k 1.9,1.10n"$order" -k 2.1,2.2n"$order" -k 2.4,2.5n"$order" -k 2.7,2.8n"$order" | (echo "DATE TIME IP"; cat) | column -t
+
+		zgrep " Ban " "$logfolder/fail2ban.log"* | \
+		sed -r 's/[^:]+:([^,]+)[^\[]+\[([^]]+)\] Ban (.+)/\1 \2 \3/g' | \
+		sort -t " " -k 1.1,1.4n"$order" -k 1.6,1.7n"$order" -k 1.9,1.10n"$order" -k 2.1,2.2n"$order" -k 2.4,2.5n"$order" -k 2.7,2.8n"$order" | \
+		(echo "DATE TIME JAIL IP"; cat) | \
+		column -t
 		;;
 
 	latest)
@@ -135,7 +158,13 @@ case "$command" in
 			lines=10
 		fi
 
-		zgrep " Ban " "$logfolder/fail2ban.log"* | sed -r 's/[^:]+:([^,]+).* Ban (.+)/\1 \2/g' | sort -t " " -k 1.1,1.4nr -k 1.6,1.7nr -k 1.9,1.10nr -k 2.1,2.2nr -k 2.4,2.5nr -k 2.7,2.8nr | head -n $lines | sort -t " " -k 1.1,1.4n"$order" -k 1.6,1.7n"$order" -k 1.9,1.10n"$order" -k 2.1,2.2n"$order" -k 2.4,2.5n"$order" -k 2.7,2.8n"$order" | (echo "DATE TIME IP"; cat) | column -t
+		zgrep " Ban " "$logfolder/fail2ban.log"* | \
+		sed -r 's/[^:]+:([^,]+)[^\[]+\[([^]]+)\] Ban (.+)/\1 \2 \3/g' | \
+		sort -t " " -k 1.1,1.4nr -k 1.6,1.7nr -k 1.9,1.10nr -k 2.1,2.2nr -k 2.4,2.5nr -k 2.7,2.8nr | \
+		head -n $lines | \
+		sort -t " " -k 1.1,1.4n"$order" -k 1.6,1.7n"$order" -k 1.9,1.10n"$order" -k 2.1,2.2n"$order" -k 2.4,2.5n"$order" -k 2.7,2.8n"$order" | \
+		(echo "DATE TIME JAIL IP"; cat) | \
+		column -t
 		;;
 
 	offences)
@@ -146,14 +175,35 @@ case "$command" in
 		fi
 
 		if [ "$threshold" != "" ]; then
-			zgrep " Ban " "$logfolder/fail2ban.log"* | awk '{ print $7 }' | sort | uniq -c | awk -v threshold="$threshold" '{ if($1 >= threshold) print $0; }' | sort -n$order | (echo "IP OFFENCES"; awk '{ print $2" "$1 }') | column -t
+			zgrep " Ban " "$logfolder/fail2ban.log"* | \
+			awk '{ print $7 }' | \
+			sort | \
+			uniq -c | \
+			awk -v threshold="$threshold" '{ if($1 >= threshold) print $0; }' | \
+			sort -n$order | \
+			(echo "IP OFFENCES"; awk '{ print $2" "$1 }') | \
+			column -t
 		else
-			zgrep " Ban " "$logfolder/fail2ban.log"* | awk '{ print $7 }' | sort | uniq -c | sort -n$order | (echo "IP OFFENCES"; awk '{ print $2" "$1 }') | column -t
+			zgrep " Ban " "$logfolder/fail2ban.log"* | \
+			awk '{ print $7 }' | \
+			sort | \
+			uniq -c | \
+			sort -n$order | \
+			(echo "IP OFFENCES"; awk '{ print $2" "$1 }') | \
+			column -t
 		fi
 		;;
 
 	medalists)
-		zgrep " Ban " "$logfolder/fail2ban.log"* | awk '{ print $7 }' | sort | uniq -c | sort -rn | head -n 3 | awk '{ if(NR == 1) printf "Gold"; if(NR == 2) printf "Silver"; if(NR == 3) printf "Bronze"; print " "$1" "$2 }' |  (echo "MEDAL OFFENCES IP"; cat) | column -t
+		zgrep " Ban " "$logfolder/fail2ban.log"* | \
+		awk '{ print $7 }' | \
+		sort | \
+		uniq -c | \
+		sort -rn | \
+		head -n 3 | \
+		awk '{ if(NR == 1) printf "Gold"; if(NR == 2) printf "Silver"; if(NR == 3) printf "Bronze"; print " "$1" "$2 }' | \
+		(echo "MEDAL OFFENCES IP"; cat) | \
+		column -t
 		;;
 
 	*)
