@@ -140,7 +140,7 @@ case "$command" in
 			order=''
 		fi
 
-		zgrep " Ban " "$logfolder/fail2ban.log"* | \
+		zgrep -h " Ban " "$logfolder/fail2ban.log"* | \
 		sed -r 's/[^:]+:([^,]+)[^\[]+\[([^]]+)\] Ban (.+)/\1 \2 \3/g' | \
 		sort -t " " -k 1.1,1.4n"$order" -k 1.6,1.7n"$order" -k 1.9,1.10n"$order" -k 2.1,2.2n"$order" -k 2.4,2.5n"$order" -k 2.7,2.8n"$order" | \
 		(echo "DATE TIME JAIL IP"; cat) | \
@@ -158,7 +158,7 @@ case "$command" in
 			lines=10
 		fi
 
-		zgrep " Ban " "$logfolder/fail2ban.log"* | \
+		zgrep -h " Ban " "$logfolder/fail2ban.log"* | \
 		sed -r 's/[^:]+:([^,]+)[^\[]+\[([^]]+)\] Ban (.+)/\1 \2 \3/g' | \
 		sort -t " " -k 1.1,1.4nr -k 1.6,1.7nr -k 1.9,1.10nr -k 2.1,2.2nr -k 2.4,2.5nr -k 2.7,2.8nr | \
 		head -n $lines | \
@@ -175,7 +175,7 @@ case "$command" in
 		fi
 
 		if [ "$threshold" != "" ]; then
-			zgrep " Ban " "$logfolder/fail2ban.log"* | \
+			zgrep -h " Ban " "$logfolder/fail2ban.log"* | \
 			awk '{ print $7 }' | \
 			sort | \
 			uniq -c | \
@@ -184,7 +184,7 @@ case "$command" in
 			(echo "IP OFFENCES"; awk '{ print $2" "$1 }') | \
 			column -t
 		else
-			zgrep " Ban " "$logfolder/fail2ban.log"* | \
+			zgrep -h " Ban " "$logfolder/fail2ban.log"* | \
 			awk '{ print $7 }' | \
 			sort | \
 			uniq -c | \
@@ -195,7 +195,7 @@ case "$command" in
 		;;
 
 	medalists)
-		zgrep " Ban " "$logfolder/fail2ban.log"* | \
+		zgrep -h " Ban " "$logfolder/fail2ban.log"* | \
 		awk '{ print $7 }' | \
 		sort | \
 		uniq -c | \
