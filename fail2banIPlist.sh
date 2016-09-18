@@ -3,7 +3,7 @@
 # TODO
 # * Country of the medalists
 
-version='1.1.0'
+version='1.2.0'
 self=`basename $0`
 logfolder=/var/log
 usage="Usage: $self [options]
