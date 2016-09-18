@@ -111,6 +111,37 @@ while getopts ":c:n:o:t:vh" option; do
 	esac
 done
 
+# Consts
+if [ "$order" == 'desc' ]; then
+	order='r'
+	STRIP="head"
+else
+	order=''
+	STRIP="tail"
+fi
+
+# fallback to syslog, if logtarget = SYSLOG
+if grep -q -E '^logtarget *= *' /etc/fail2ban/fail2ban.local 2>/dev/null; then
+	logtarget=`sed -ne 's/^logtarget *= *\(.*\)$/\1/p' /etc/fail2ban/fail2ban.local`
+elif grep -q -E '^logtarget *= *' /etc/fail2ban/fail2ban.conf 2>/dev/null; then
+	logtarget=`sed -ne 's/^logtarget *= *\(.*\)$/\1/p' /etc/fail2ban/fail2ban.conf`
+else
+	logtarget="$logfolder/fail2ban.log"
+fi
+
+# different date/time format in syslog
+if [ "$logtarget" = "SYSLOG" ]; then
+	logtarget="$logfolder/syslog"
+	FILTER_SED='s/([^ ]+) +([^ ]+) ([^ ]+) .*[^\[]+ \[([^]]+)\] Ban (.+)/\1 \2 \3 \4 \5/'
+	FILTER_IP='s/([^ ]+) +([^ ]+) ([^ ]+) .*[^\[]+ \[([^]]+)\] Ban (.+)/\5/'
+	SORT_ARGS="-k 1M$order -k 2n$order -k 3$order"
+	DATE_TITLE="MON DAY"
+else
+	FILTER_SED='s/([^,]+).*[^\[]+\[([^]]+)\] Ban (.+)/\1 \2 \3/'
+	FILTER_IP='s/([^,]+).*[^\[]+\[([^]]+)\] Ban (.+)/\3/'
+	SORT_ARGS="-k 1.1,1.4n$order -k 1.6,1.7n$order -k 1.9,1.10n$order -k 2.1,2.2n$order -k 2.4,2.5n$order -k 2.7,2.8n$order"
+	DATE_TITLE="DATE"
+fi
 
 # Running the command
 case "$command" in
@@ -134,50 +165,30 @@ case "$command" in
 		;;
 
 	all)
-		if [ "$order" == 'desc' ]; then
-			order='r'
-		else
-			order=''
-		fi
-
-		zgrep -h " Ban " "$logfolder/fail2ban.log"* | \
-		sed -r 's/([^,]+).*[^\[]+\[([^]]+)\] Ban (.+)/\1 \2 \3/' | \
-		sort -t " " -k 1$order -k 2$order | \
-		(echo "DATE TIME JAIL IP"; cat) | \
+		zgrep -h " Ban " "$logtarget"* | \
+		sed -r "$FILTER_SED" | \
+		sort -t ' ' $SORT_ARGS | \
+		(echo "$DATE_TITLE TIME JAIL IP"; cat) | \
 		column -t
 		;;
 
 	latest)
-		if [ "$order" == 'asc' ]; then
-			order=''
-			STRIP="tail"
-		else
-			order='r'
-			STRIP="head"
-		fi
-
 		if [ "$lines" == "" ] || [ "$lines" -lt 0 ]; then
 			lines=10
 		fi
 
-		zgrep -h " Ban " "$logfolder/fail2ban.log"* | \
-		sed -r 's/([^,]+).*[^\[]+\[([^]]+)\] Ban (.+)/\1 \2 \3/' | \
-		sort -t " " -k 1$order -k 2$order | \
+		zgrep -h " Ban " "$logtarget"* | \
+		sed -r "$FILTER_SED" | \
+		sort -t ' ' $SORT_ARGS | \
 		$STRIP -n $lines | \
-		(echo "DATE TIME JAIL IP"; cat) | \
+		(echo "$DATE_TITLE TIME JAIL IP"; cat) | \
 		column -t
 		;;
 
 	offences)
-		if [ "$order" == 'asc' ]; then
-			order=''
-		else
-			order='r'
-		fi
-
 		if [ "$threshold" != "" ]; then
-			zgrep -h " Ban " "$logfolder/fail2ban.log"* | \
-			awk '{ print $7 }' | \
+			zgrep -h " Ban " "$logtarget"* | \
+			sed -r "$FILTER_IP" | \
 			sort | \
 			uniq -c | \
 			awk -v threshold="$threshold" '{ if($1 >= threshold) print $0; }' | \
@@ -185,8 +196,8 @@ case "$command" in
 			(echo "IP OFFENCES"; awk '{ print $2" "$1 }') | \
 			column -t
 		else
-			zgrep -h " Ban " "$logfolder/fail2ban.log"* | \
-			awk '{ print $7 }' | \
+			zgrep -h " Ban " "$logtarget"* | \
+			sed -r "$FILTER_IP" | \
 			sort | \
 			uniq -c | \
 			sort -n$order | \
@@ -196,8 +207,8 @@ case "$command" in
 		;;
 
 	medalists)
-		zgrep -h " Ban " "$logfolder/fail2ban.log"* | \
-		awk '{ print $7 }' | \
+		zgrep -h " Ban " "$logtarget"* | \
+		sed -r "$FILTER_IP" | \
 		sort | \
 		uniq -c | \
 		sort -rn | \
