@@ -12,7 +12,7 @@ Options:
   -c command (MANDATORY, see below)
   -h displays this help
   -n number of lines to display (only for the 'latest' command)
-  -o order of the results (only for the 'all', 'latest' and 'offences' command)
+  -o order 'asc' or 'desc' of the results (only for the 'all', 'latest' and 'offences' command)
   -t threshold of number of offences for an IP to be listed (only for the 'offences' command)
   -v displays version of this script
 
