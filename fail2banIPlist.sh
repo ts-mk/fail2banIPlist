@@ -150,8 +150,10 @@ case "$command" in
 	latest)
 		if [ "$order" == 'asc' ]; then
 			order=''
+			STRIP="tail"
 		else
 			order='r'
+			STRIP="head"
 		fi
 
 		if [ "$lines" == "" ] || [ "$lines" -lt 0 ]; then
@@ -160,9 +162,8 @@ case "$command" in
 
 		zgrep -h " Ban " "$logfolder/fail2ban.log"* | \
 		sed -r 's/([^,]+).*[^\[]+\[([^]]+)\] Ban (.+)/\1 \2 \3/' | \
-		sort -t " " -k 1.1,1.4nr -k 1.6,1.7nr -k 1.9,1.10nr -k 2.1,2.2nr -k 2.4,2.5nr -k 2.7,2.8nr | \
-		head -n $lines | \
 		sort -t " " -k 1.1,1.4n"$order" -k 1.6,1.7n"$order" -k 1.9,1.10n"$order" -k 2.1,2.2n"$order" -k 2.4,2.5n"$order" -k 2.7,2.8n"$order" | \
+		$STRIP -n $lines | \
 		(echo "DATE TIME JAIL IP"; cat) | \
 		column -t
 		;;
