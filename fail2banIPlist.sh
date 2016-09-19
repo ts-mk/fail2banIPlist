@@ -23,12 +23,12 @@ Commands:
   offences - lists number of bans for each unique IP
   medalists - lists the top three banned IPs
 
-Author:
-  Tomas Mrozek <mail@cascaval.com>
+Authors:
+  Tomas Mrozek (https://github.com/cascaval)
+  Eric COUTURIER-GUILLAUME (https://github.com/Eric-CG)
+  HenryNe (https://github.com/HenryNe)
 
 License:
-  Copyright (C) 2015 Tomas Mrozek
-
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
